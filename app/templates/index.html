@@ -716,7 +716,11 @@
           <span id="practice-goal-icon">🎯</span>
           <span id="practice-goal-name">Practice Modules</span>
         </div>
-        <div style="display: flex; gap: 0.35rem;">
+        <div style="display: flex; gap: 0.35rem; align-items: center;">
+          <div id="live-session-pill" style="display: inline-flex; align-items: center; gap: 0.4rem; background: rgba(52, 211, 153, 0.12); border: 1px solid rgba(52, 211, 153, 0.3); color: #34d399; padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.85rem; font-weight: 600;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #34d399; animation: pulse 1.5s infinite;"></span>
+            <span>Active Session: <strong id="live-session-timer">0m 00s</strong></span>
+          </div>
           <button class="back-btn" onclick="goToPage('app-view')">← Goals</button>
           <button class="btn btn-sm btn-secondary" onclick="retakeTest()">🔄 Retake Test</button>
         </div>
@@ -752,7 +756,8 @@
       currentGoalName: null,
       currentDiagnostic: null,
       userLevel: 1,
-      selectedLevel: 1
+      selectedLevel: 1,
+      activePracticeSession: null
     };
 
     const goalIcons = {
@@ -773,10 +778,16 @@
 
     // ==================== NAVIGATION ====================
     function goToPage(pageId) {
+      if (pageId !== 'practice-view') {
+        stopPracticeSessionTracker();
+      }
       document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
       const p = document.getElementById(pageId);
       if (p) p.classList.add('active');
       window.scrollTo(0, 0);
+      if (pageId === 'app-view') {
+        loadDashboard();
+      }
     }
 
     // ==================== AUTH / GUEST ACCESS ====================
@@ -1016,6 +1027,7 @@
 
       goToPage('practice-view');
       renderLevelsGrid();
+      startPracticeSessionTracker();
     }
 
     function retakeTest() {
@@ -1095,7 +1107,10 @@
               card.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <div class="item-title">${item.word}</div>
-                  <button class="audio-play-btn" onclick="speakText('${item.word}')">🔊 Listen</button>
+                  <div style="display:flex; gap:0.4rem;">
+                    <button class="audio-play-btn" onclick="speakText('${item.word}')">🔊 Listen</button>
+                    <button class="audio-play-btn" style="background:rgba(52,211,153,0.15); border-color:rgba(52,211,153,0.35); color:#34d399;" onclick="markItemPracticed(this, '${item.id}', 'pronunciation_words')">✓ Complete</button>
+                  </div>
                 </div>
                 ${item.easy_pronunciation ? `<div class="item-phonetic">${item.easy_pronunciation}</div>` : ''}
                 <div class="item-sub"><strong>Syllables:</strong> ${item.syllables ? item.syllables.join(' · ') : '—'}</div>
@@ -1106,9 +1121,12 @@
               card.innerHTML = `
                 <div class="item-title">${item.question || ''}</div>
                 ${item.sample_guidance ? `<div class="item-sub" style="color: #cbd5e1;">💡 <strong>Tip:</strong> ${item.sample_guidance}</div>` : ''}
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.2rem;">
-                  ${item.category ? `<span class="item-tag">${item.category}</span>` : ''}
-                  <button class="audio-play-btn" onclick="speakText('${(item.question || '').replace(/'/g, "\\'")}')">🔊 Read Aloud</button>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.3rem;">
+                  ${item.category ? `<span class="item-tag">${item.category}</span>` : '<span></span>'}
+                  <div style="display:flex; gap:0.4rem;">
+                    <button class="audio-play-btn" onclick="speakText('${(item.question || '').replace(/'/g, "\\'")}')">🔊 Read Aloud</button>
+                    <button class="audio-play-btn" style="background:rgba(52,211,153,0.15); border-color:rgba(52,211,153,0.35); color:#34d399;" onclick="markItemPracticed(this, '${item.id}', 'interview_questions')">✓ Complete</button>
+                  </div>
                 </div>
               `;
             } else if (slug === 'presentation') {
@@ -1122,16 +1140,22 @@
                     </ul>
                   </div>
                 ` : ''}
-                ${item.category ? `<span class="item-tag">${item.category}</span>` : ''}
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.3rem;">
+                  ${item.category ? `<span class="item-tag">${item.category}</span>` : '<span></span>'}
+                  <button class="audio-play-btn" style="background:rgba(52,211,153,0.15); border-color:rgba(52,211,153,0.35); color:#34d399;" onclick="markItemPracticed(this, '${item.id}', 'presentation_tasks')">✓ Complete</button>
+                </div>
               `;
             } else if (slug === 'communication') {
               card.innerHTML = `
                 <div class="item-title">${item.prompt || ''}</div>
                 ${item.correct_answer ? `<div class="item-sub" style="color:#34d399;">✓ <strong>Model Answer:</strong> ${item.correct_answer}</div>` : ''}
                 ${item.explanation ? `<div class="item-sub" style="color:#94a3b8;">${item.explanation}</div>` : ''}
-                <div style="display:flex; gap:0.25rem; flex-wrap:wrap;">
-                  ${item.category ? `<span class="item-tag">${item.category}</span>` : ''}
-                  ${item.exercise_type ? `<span class="item-tag">${item.exercise_type}</span>` : ''}
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.3rem;">
+                  <div style="display:flex; gap:0.25rem; flex-wrap:wrap;">
+                    ${item.category ? `<span class="item-tag">${item.category}</span>` : ''}
+                    ${item.exercise_type ? `<span class="item-tag">${item.exercise_type}</span>` : ''}
+                  </div>
+                  <button class="audio-play-btn" style="background:rgba(52,211,153,0.15); border-color:rgba(52,211,153,0.35); color:#34d399;" onclick="markItemPracticed(this, '${item.id}', 'communication_exercises')">✓ Complete</button>
                 </div>
               `;
             } else if (slug === 'gd') {
@@ -1146,7 +1170,10 @@
                     </ul>
                   </div>
                 ` : ''}
-                ${item.category ? `<span class="item-tag">${item.category}</span>` : ''}
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.3rem;">
+                  ${item.category ? `<span class="item-tag">${item.category}</span>` : '<span></span>'}
+                  <button class="audio-play-btn" style="background:rgba(52,211,153,0.15); border-color:rgba(52,211,153,0.35); color:#34d399;" onclick="markItemPracticed(this, '${item.id}', 'gd_topics')">✓ Complete</button>
+                </div>
               `;
             }
 
@@ -1170,6 +1197,142 @@
       }
     }
 
+    // ==================== TIME FORMATTER ====================
+    function formatPracticeTime(totalSeconds) {
+      const sec = Math.max(0, Math.floor(totalSeconds || 0));
+      if (sec === 0) return '0 min';
+
+      const hours = Math.floor(sec / 3600);
+      const minutes = Math.floor((sec % 3600) / 60);
+      const remainingSec = sec % 60;
+
+      if (hours > 0) {
+        if (minutes > 0) {
+          return `${hours} hr ${minutes} min`;
+        }
+        return `${hours} hr`;
+      }
+
+      if (minutes > 0) {
+        return `${minutes} min`;
+      }
+
+      return `${remainingSec}s`;
+    }
+
+    // ==================== PRACTICE SESSION & HEARTBEAT TRACKER ====================
+    let sessionTimerInterval = null;
+    let sessionHeartbeatInterval = null;
+
+    function startPracticeSessionTracker() {
+      stopPracticeSessionTracker();
+      const startTime = Date.now();
+      state.activePracticeSession = {
+        startTime: startTime,
+        goalSlug: state.currentGoalSlug,
+        lastHeartbeatTime: startTime
+      };
+
+      const timerEl = document.getElementById('live-session-timer');
+      if (timerEl) timerEl.textContent = '0m 00s';
+
+      // Update UI timer counter every second
+      sessionTimerInterval = setInterval(() => {
+        if (!state.activePracticeSession) return;
+        const elapsedSec = Math.floor((Date.now() - state.activePracticeSession.startTime) / 1000);
+        const mins = Math.floor(elapsedSec / 60);
+        const secs = elapsedSec % 60;
+        const formatted = `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
+        const el = document.getElementById('live-session-timer');
+        if (el) el.textContent = formatted;
+      }, 1000);
+
+      // Send heartbeat ping to backend every 15 seconds to accumulate actual practice time
+      sessionHeartbeatInterval = setInterval(async () => {
+        await sendPracticeHeartbeat();
+      }, 15000);
+    }
+
+    async function sendPracticeHeartbeat() {
+      if (!state.activePracticeSession || !state.token) return;
+      const now = Date.now();
+      const secondsSinceLast = Math.floor((now - state.activePracticeSession.lastHeartbeatTime) / 1000);
+      if (secondsSinceLast <= 0) return;
+
+      state.activePracticeSession.lastHeartbeatTime = now;
+      try {
+        await fetch('/api/v1/heartbeat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${state.token}`
+          },
+          body: JSON.stringify({
+            goal_slug: state.activePracticeSession.goalSlug,
+            seconds_spent: secondsSinceLast
+          })
+        });
+      } catch(e) {}
+    }
+
+    async function stopPracticeSessionTracker() {
+      if (sessionTimerInterval) {
+        clearInterval(sessionTimerInterval);
+        sessionTimerInterval = null;
+      }
+      if (sessionHeartbeatInterval) {
+        clearInterval(sessionHeartbeatInterval);
+        sessionHeartbeatInterval = null;
+      }
+      if (state.activePracticeSession) {
+        await sendPracticeHeartbeat();
+        state.activePracticeSession = null;
+      }
+    }
+
+    // Record an individual item completed
+    async function markItemPracticed(btn, itemId, contentType) {
+      if (!state.token) return;
+      const card = btn.closest('.content-item-card');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Saving...';
+
+      try {
+        const res = await fetch('/api/v1/heartbeat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${state.token}`
+          },
+          body: JSON.stringify({
+            goal_slug: state.currentGoalSlug,
+            seconds_spent: 10
+          })
+        });
+
+        // Also track through practice attempts if session exists or update UI
+        btn.classList.add('completed');
+        btn.innerHTML = '✓ Practiced!';
+        btn.style.background = 'rgba(52, 211, 153, 0.2)';
+        btn.style.borderColor = 'rgba(52, 211, 153, 0.5)';
+        btn.style.color = '#34d399';
+        if (card) {
+          card.style.borderColor = 'rgba(52, 211, 153, 0.4)';
+        }
+
+        // Increment total completed count and refresh metrics
+        const totalItemsEl = document.getElementById('stat-total-items');
+        if (totalItemsEl) {
+          const current = parseInt(totalItemsEl.textContent, 10) || 0;
+          totalItemsEl.textContent = current + 1;
+        }
+      } catch(e) {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
     // ==================== DASHBOARD METRICS ====================
     async function loadDashboard() {
       if (!state.token) return;
@@ -1181,7 +1344,7 @@
         if (json.success && json.data) {
           const m = json.data.overall_metrics;
           document.getElementById('stat-total-items').textContent = m.total_items_completed || 0;
-          document.getElementById('stat-total-time').textContent = `${m.total_practice_time_minutes || 0} min`;
+          document.getElementById('stat-total-time').textContent = formatPracticeTime(m.total_practice_time_seconds);
           document.getElementById('stat-active-goals').textContent = m.active_goals_count || 0;
         }
       } catch(e) {}

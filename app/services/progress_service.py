@@ -65,6 +65,47 @@ class ProgressService:
         }
 
     @staticmethod
+    def record_heartbeat_time(user_id: str, goal_slug: Optional[str], seconds_spent: int) -> Dict[str, Any]:
+        """Record active practice elapsed time from the front-end active session timer."""
+        user = UserRepository.get_by_id(user_id)
+        if not user:
+            raise NotFoundError("User not found.")
+
+        if seconds_spent <= 0:
+            return {"status": "ignored"}
+
+        # Cap individual heartbeat to avoid anomalous spikes (max 300 seconds / 5 mins per ping)
+        safe_seconds = min(seconds_spent, 300)
+
+        goal = None
+        if goal_slug:
+            goal = GoalRepository.get_by_slug(goal_slug)
+
+        if not goal:
+            # Fall back to user's first active goal
+            user_goals = UserRepository.get_user_goals(user_id)
+            if user_goals:
+                goal = user_goals[0].goal
+
+        if goal:
+            PracticeRepository.update_progress_on_attempt(
+                user_id=user_id,
+                goal_id=goal.id,
+                content_type="practice_timer",
+                time_spent_seconds=safe_seconds,
+                marked_for_revision=False,
+            )
+            # Avoid incrementing items_completed for pure elapsed time heartbeats
+            PracticeRepository.record_activity_entry(
+                user_id=user_id,
+                goal_id=goal.id,
+                items_count=0,
+                time_spent_seconds=safe_seconds,
+            )
+
+        return {"status": "recorded", "seconds_recorded": safe_seconds}
+
+    @staticmethod
     def get_goal_progress_details(user_id: str, goal_slug: str) -> Dict[str, Any]:
         goal = GoalRepository.get_by_slug(goal_slug)
         if not goal:

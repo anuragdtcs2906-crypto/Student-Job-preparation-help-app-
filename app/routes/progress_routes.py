@@ -15,6 +15,19 @@ def get_dashboard():
     return success_response(data=summary)
 
 
+@progress_bp.route("/heartbeat", methods=["POST"])
+@jwt_required()
+def record_heartbeat():
+    """Record elapsed practice time from active sessions."""
+    from flask import request
+    user_id = get_jwt_identity()
+    payload = request.get_json() or {}
+    goal_slug = payload.get("goal_slug")
+    seconds_spent = int(payload.get("seconds_spent", 0))
+    result = ProgressService.record_heartbeat_time(user_id, goal_slug, seconds_spent)
+    return success_response(data=result)
+
+
 @progress_bp.route("/progress/<string:goal_slug>", methods=["GET"])
 @jwt_required()
 def get_goal_progress(goal_slug: str):
