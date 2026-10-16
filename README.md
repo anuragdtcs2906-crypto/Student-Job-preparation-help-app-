@@ -5,6 +5,26 @@ A production-ready, privacy-first, modular platform designed to help students an
 
 ---
 
+## ⚡ Quick Start: Run Locally (Localhost)
+
+Run the full interactive application locally in two simple commands:
+
+```bash
+# 1. Install dependencies (if not already installed)
+pip install -r requirements.txt
+
+# 2. Run the application
+python run.py
+```
+
+Once running, open your web browser:
+- 🌐 **Interactive Web App**: [http://localhost:5000](http://localhost:5000) or [http://127.0.0.1:5000](http://127.0.0.1:5000)
+- 🩺 **API Health Check**: [http://localhost:5000/health](http://localhost:5000/health)
+
+*(The database and initial seed content are auto-initialized on first run)*
+
+---
+
 ## 🌟 Philosophy
 
 > **"You choose what you want to improve. We figure out how you should practice."**
