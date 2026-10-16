@@ -178,6 +178,8 @@ Create a `.env` file in the project root based on `.env.example`:
 ```env
 FLASK_APP=run.py
 FLASK_ENV=development
+HOST=127.0.0.1
+PORT=5000
 SECRET_KEY=your-secure-secret-key-12345
 DEBUG=True
 
@@ -209,7 +211,9 @@ python seed/seed_runner.py
 python run.py
 ```
 
-The server will start at `http://localhost:5000` with the health check available at `http://localhost:5000/health`.
+Open your browser and navigate to:
+- **Interactive Web App**: [http://localhost:5000](http://localhost:5000) or [http://127.0.0.1:5000](http://127.0.0.1:5000)
+- **API Health Check**: [http://localhost:5000/health](http://localhost:5000/health)
 
 ---
 
